@@ -333,6 +333,7 @@ public class ReflectUtils {
             }
             return method.invoke(target, args);
         } catch (InvocationTargetException e) {
+            e.printStackTrace();
             Throwable targetException = e.getTargetException();
             throw new SquirrelRuntimeException(targetException, ErrorCodes.METHOD_INVOKE_ERROR, 
                     method, Arrays.toString(args), target, targetException.getCause());
