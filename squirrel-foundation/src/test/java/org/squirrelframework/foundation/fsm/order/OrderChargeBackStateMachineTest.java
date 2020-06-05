@@ -3,9 +3,7 @@ package org.squirrelframework.foundation.fsm.order;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.squirrelframework.foundation.fsm.StateMachineBuilder;
-import org.squirrelframework.foundation.fsm.StateMachineBuilderFactory;
-import org.squirrelframework.foundation.fsm.StateMachineStatus;
+import org.squirrelframework.foundation.fsm.*;
 import org.squirrelframework.foundation.fsm.atmqiutt.atm.ATMStateMachine;
 
 /**
@@ -23,13 +21,13 @@ public class OrderChargeBackStateMachineTest {
 				= StateMachineBuilderFactory.create(
 				OrderChargeBackStateMachine.class, OrderChargeBackTaskState.class, OrderChargeBackTaskEvent.class, OrderChargeBackTaskModel.class);
 		//流程注册
-		//builder.onEntry(OrderChargeBackTaskState.INIT).callMethod("entryINIT");
 		builder.externalTransition().from(OrderChargeBackTaskState.INIT).to(OrderChargeBackTaskState.FAILED).on(OrderChargeBackTaskEvent.ORDER_NOT_EXIST);
 		builder.externalTransition().from(OrderChargeBackTaskState.INIT).to(OrderChargeBackTaskState.FAILED).on(OrderChargeBackTaskEvent.ORDER_CHARGEBACK_RECORD_NOT_EXIST);
 		builder.externalTransition().from(OrderChargeBackTaskState.INIT).to(OrderChargeBackTaskState.REFUNDING_BILLS).on(OrderChargeBackTaskEvent.ORDER_AND_CHARGEBACK_RECORD_EXIST);
 
 		builder.externalTransition().from(OrderChargeBackTaskState.REFUNDING_BILLS).to(OrderChargeBackTaskState.FAILED).on(OrderChargeBackTaskEvent.ORDER_CHARGEBACK_RECORD_NOT_EXIST);
-		builder.externalTransition().from(OrderChargeBackTaskState.REFUNDING_BILLS).to(OrderChargeBackTaskState.REFUNDING_BILLS).on(OrderChargeBackTaskEvent.CALL_FINANCE_API_FAILED);
+		//内部重试
+		builder.internalTransition(TransitionPriority.HIGH).within(OrderChargeBackTaskState.REFUNDING_BILLS).on(OrderChargeBackTaskEvent.CALL_FINANCE_API_FAILED).callMethod("entryREFUNDING_BILLS");
 		builder.externalTransition().from(OrderChargeBackTaskState.REFUNDING_BILLS).to(OrderChargeBackTaskState.REFUND).on(OrderChargeBackTaskEvent.CALL_FINANCE_API_SUCCESS);
 
 		builder.externalTransition().from(OrderChargeBackTaskState.REFUND).to(OrderChargeBackTaskState.FAILED).on(OrderChargeBackTaskEvent.ORDER_CHARGEBACK_RECORD_NOT_EXIST);
@@ -46,7 +44,7 @@ public class OrderChargeBackStateMachineTest {
 		builder.externalTransition().from(OrderChargeBackTaskState.SAVE_RESULT).to(OrderChargeBackTaskState.SUCCESS).on(OrderChargeBackTaskEvent.DATA_SAVE_SUCCESS);
 
 
-		stateMachine = builder.newStateMachine(OrderChargeBackTaskState.INIT);
+		stateMachine = builder.newStateMachine(OrderChargeBackTaskState.INIT,StateMachineConfiguration.create().enableDebugMode(true));
 
 	}
 
@@ -61,6 +59,8 @@ public class OrderChargeBackStateMachineTest {
 	public void test() {
 		OrderChargeBackTaskModel taskModel=new OrderChargeBackTaskModel("111","222",1L);
 		stateMachine.start(taskModel);
+		StateMachineLogger fsmLogger = new StateMachineLogger(stateMachine);
+		fsmLogger.startLogging();
 	}
 
 
